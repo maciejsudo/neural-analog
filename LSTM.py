@@ -1,5 +1,5 @@
 import torch.nn as nn
-from model_architestures import GuitarLSTM
+from model_architestures import GuitarLSTM, ESRLoss
 from scipy.io import wavfile
 import numpy as np
 import torch
@@ -145,46 +145,14 @@ if __name__ == "__main__":
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    print(data_train[0].shape)
-
+    # training loader:
     train_arr = WindowArrayDataset(data_train[0], data_train[1], input_size, batch_size= batch_size)
-    #train_arr = WindowArrayDataset(data_train[0], data_train[1], input_size)
-
-    #val_arr = WindowArrayDataset(data_val[0], data_val[1], input_size)
-
     train_loader = DataLoader(train_arr, batch_size=1, shuffle=False)
-    #??? ale gowno nie dziala
-    #train_loader = train_loader
 
+    #validation loader:
+    val_arr = WindowArrayDataset(data_val[0], data_val[1], input_size, batch_size= batch_size)
+    val_loader = DataLoader(val_arr, batch_size=1, shuffle=False)
 
-
-
-    # #####################################################################
-    #
-    # index = 0
-    # sample_item = train_arr[index]
-    # print(sample_item[0].shape)  # torch.Size([1, 150, 1])
-    # print(sample_item[1].shape)  # torch.Size([1, 150])
-    #
-    #
-    #
-    # for i, (inputs, targets) in enumerate(train_loader):
-    #     print('idx =', i)
-    #     print(inputs.shape)
-    #     print(targets.shape)
-    #
-    #     inputs = inputs.view(1 *4096, 150, 1)
-    #     targets = targets.view(1 *4096, 1)
-    #
-    #     print('po usunieciu drugiego wymiary nadanego przez dataloadera!')
-    #     print(inputs.shape)
-    #     print(targets.shape)
-    #
-    #
-    #     break
-    #
-    #
-    # ###################################################
 
 
 
@@ -203,9 +171,28 @@ if __name__ == "__main__":
             optimizer.step()
             optimizer.zero_grad()
 
-            if (i + 1) % print_interval == 0:
-                print(
-                    f"Epoch [{epoch + 1}/{epochs}], Batch [{i + 1}/{len(train_arr)}], Loss: {loss.item():.4f}")
+            if (i + 1) % print_interval == 0: # every each 100epochs print and run validation!:
+
+                print(f"Epoch [{epoch + 1}/{epochs}], Batch [{i + 1}/{len(train_arr)}], Loss: {loss.item():.4f}")
+
+        # for each epoch calculate validation loss:
+        mse_sum = 0.0
+        num_batches = 0
+        model.eval()
+        with torch.no_grad():
+            for i, (inputs, targets) in enumerate(val_loader):
+                inputs = inputs.view(1 * 4096, 150, 1)
+                targets = targets.view(1 * 4096, 1)
+
+                outputs = model(inputs)
+                val_loss = loss_fn(outputs,targets)
+
+                mse_sum += val_loss
+                num_batches +=1
+            average_mse = mse_sum / num_batches
+            print(f"Average validation MSE: {average_mse:.4f}")
+
+
 
     # Save trained model
     new_dir = os.path.join('models',name)
@@ -213,7 +200,7 @@ if __name__ == "__main__":
 
     torch.save(model.state_dict(), f'models/{name}/{name}.pth')
 
-    #running prediction:
+    #running prediction on test dataset:
 
     test_arr = WindowArrayDataset(data_test[0], data_test[1], input_size, batch_size=204800)
 
@@ -225,11 +212,6 @@ if __name__ == "__main__":
 
     index = 0
     sample_item = test_arr[index]
-    print(sample_item[0].shape)  # torch.Size([1, 150, 1])
-    print(sample_item[1].shape)  # torch.Size([1, 150])
-
-
-    #test_tensor = torch.tensor(test_arr[0], dtype=torch.float32)
 
     # Make predictions
     with torch.no_grad():
@@ -242,18 +224,6 @@ if __name__ == "__main__":
     # Save predictions as WAV
     sf.write(f'models/{name}/y_pred.wav', prediction, samplerate=44100)
 
-    # with torch.no_grad():
-    #     n_correct = 0
-    #     n_samples = 0
-    #     for images, labels in test_loader:
-    #         images = images.reshape(-1, 28 * 28).to(device)
-    #         labels = labels.to(device)
-    #         outputs = model(images)
-    #         _, predictions = torch.max(outputs, 1)
-    #         n_samples += labels.shape[0]
-    #         n_correct = (predictions == labels).sum().item()
-    #     acc = 100.00 * n_correct / n_samples
-    #     print(f'accuracy = {acc}')
 
 
 
