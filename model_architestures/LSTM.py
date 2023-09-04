@@ -10,7 +10,7 @@ class GuitarLSTM(nn.Module):
         self.conv1d_layer2 = nn.Conv1d(in_channels=conv1d_filters, out_channels=conv1d_filters, kernel_size=self.kernel_size, stride=conv1d_strides, padding=6)
 
         self.lstm_layer = nn.LSTM(input_size=conv1d_filters, hidden_size=hidden_units, batch_first=True)
-        self.dense_layer = nn.Linear(hidden_units, 2)
+        self.dense_layer = nn.Linear(hidden_units, 1)
 
     def forward(self, x):
         x = self.conv1d_layer1(x)
