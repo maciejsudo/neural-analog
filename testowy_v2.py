@@ -171,6 +171,8 @@ def whole_dataset(path_to_dir, feature, data_size, train_size, val_size):
         t, l, d = parse_filename(x)
 
         # outputs are all files (with input also)
+        print("values:",t,l,d)
+
 
         data = read_WAVs(path_to_dir + str(x), data_size)
         train, val, test = data_splitter(data, train_size, val_size)
@@ -185,6 +187,9 @@ def whole_dataset(path_to_dir, feature, data_size, train_size, val_size):
             for i in range(0, len(filelist)):
                 data = read_WAVs(path_to_dir + str(x), data_size)  # zaczytanie inputu o wartosci "0"
                 train, val, test = data_splitter(data, train_size, val_size)
+
+                print('wartosci=',param[i])
+                # tutaj pominą dla i=0 !!!
 
                 train = concat_WAV(train, param[i])
                 val = concat_WAV(val, param[i])
@@ -323,7 +328,7 @@ if __name__ == "__main__":
     LSTM
     Parameters:
     '''
-    epochs = 1
+    epochs = 10
     input_size = 150
     batch_size = 4096
     test_size = 0.2
@@ -363,8 +368,7 @@ if __name__ == "__main__":
 
 
 
-    data_size = 0.1
-
+    data_size = 0.9
     train_size = 0.5
     val_size = 0.25
     # test size is what is left! in this situation its 0.25 of each file
@@ -382,7 +386,9 @@ if __name__ == "__main__":
 
     print(f'test_size = {int((1 - train_size - val_size) * 100)} % that means {test_tnsr[0].shape[0]} samples')
 
-    train_tnsr = randomize(seg_len=44100, test_tnsr=train_tnsr, plot=False)
+    #train_tnsr = randomize(seg_len=44100, test_tnsr=train_tnsr, plot=False)
+
+
 
     # 50 % stanowi zbiór trenignowy!:
     train_arr = WindowArrayDataset(train_tnsr[0], train_tnsr[1], input_size, batch_size=batch_size)
@@ -520,13 +526,10 @@ if __name__ == "__main__":
     original_wav, prediction = perform_tests(path_to_dir,'level',1,test_tnsr[1], model, name)
 
     sf.write(f'models/{name}/y_pred.wav', prediction, samplerate=44100)
-
     sf.write(f'models/{name}/y_original.wav', original_wav, samplerate=44100)
 
     original_wav, prediction = perform_tests(path_to_dir, 'level', 2, test_tnsr[1], model, name)
     original_wav, prediction = perform_tests(path_to_dir, 'level', 3, test_tnsr[1], model, name)
-    original_wav, prediction = perform_tests(path_to_dir, 'level', 4, test_tnsr[1], model, name)
-    original_wav, prediction = perform_tests(path_to_dir, 'level', 5, test_tnsr[1], model, name)
 
 
 
