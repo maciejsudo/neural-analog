@@ -50,7 +50,7 @@ def audio_converter(audio):
 
 
 def prepare_WAVs(path):
-    in_file = path + '-input.wav'
+    in_file = path + '-gru-input.wav'
     out_file = path + '-target.wav'
 
     in_rate, in_data = wavfile.read(in_file)
