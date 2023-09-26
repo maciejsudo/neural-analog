@@ -139,7 +139,84 @@ def data_splitter(tensr, train_size, val_size):
     return tensr[:train_len], tensr[train_len:train_len + val_len], tensr[train_len + val_len:]
 
 
-def whole_dataset(path_to_dir, feature, data_size, train_size, val_size):
+def whole_dataset(path_to_dir, feature,data_size, train_size, val_size):
+
+    train_list_tgt =[]
+    train_list_inp =[]
+
+    val_list_tgt =[]
+    val_list_inp =[]
+
+    test_list_tgt =[]
+    test_list_inp =[]
+
+
+    filelist = return_all_filenames(path_to_dir)
+
+    tensor_list_tgt = []
+    tensor_list_inp = []
+
+    param =[]
+
+    for x in filelist:
+        t,l,d = parse_filename(x)
+
+        if (feature == 'l'):
+            param.append(l)
+        elif (feature == 'd'):
+            param.append(d)
+        elif (feature == 't'):
+            param.append(t)
+
+
+
+    for x in filelist:
+
+        t,l,d = parse_filename(x)
+
+        #outputs are all files (with input also)
+
+        data = read_WAVs(path_to_dir + str(x), data_size)
+        train,val,test = data_splitter(data, train_size, val_size)
+
+        train_list_tgt.append(train)
+        val_list_tgt.append(val)
+        test_list_tgt.append(test)
+
+
+        #old# tensor_list_tgt.append(data)
+
+        if(not(t) and not(l) and not(d)):
+            for i in range(0, len(filelist)):
+                data = read_WAVs(path_to_dir + str(x),data_size) # zaczytanie inputu o wartosci "0"
+                train, val, test = data_splitter(data, train_size, val_size)
+
+                train = concat_WAV(train, param[i])
+                val = concat_WAV(val, param[i])
+                test = concat_WAV(test, param[i])
+
+                train_list_inp.append(train)
+                val_list_inp.append(val)
+                test_list_inp.append(test)
+
+                #new_tnsr_2 = concat_WAV(data, param[i])
+                #tensor_list_inp.append(new_tnsr_2)
+
+
+    rslt_train_tgt = torch.cat(train_list_tgt, dim=0)
+    rslt_train_inp = torch.cat(train_list_inp, dim=0)
+
+    rslt_val_tgt = torch.cat(val_list_tgt, dim=0)
+    rslt_val_inp = torch.cat(val_list_inp, dim=0)
+
+    rslt_test_tgt = torch.cat(test_list_tgt, dim=0)
+    rslt_test_inp = torch.cat(test_list_inp, dim=0)
+
+
+    return [rslt_train_inp,rslt_train_tgt] , [rslt_val_inp,rslt_val_tgt], [rslt_test_inp,rslt_test_tgt]
+
+
+def whole_dataset2(path_to_dir, feature, data_size, train_size, val_size):
     train_list_tgt = []
     train_list_inp = []
 
@@ -173,18 +250,18 @@ def whole_dataset(path_to_dir, feature, data_size, train_size, val_size):
         # outputs are all files (with input also)
         print("values:",t,l,d)
 
+        if(t!=0.0 and l!=0.0 and d!=0.0):
+            data = read_WAVs(path_to_dir + str(x), data_size)
+            train, val, test = data_splitter(data, train_size, val_size)
 
-        data = read_WAVs(path_to_dir + str(x), data_size)
-        train, val, test = data_splitter(data, train_size, val_size)
-
-        train_list_tgt.append(train)
-        val_list_tgt.append(val)
-        test_list_tgt.append(test)
+            train_list_tgt.append(train)
+            val_list_tgt.append(val)
+            test_list_tgt.append(test)
 
         # old# tensor_list_tgt.append(data)
 
         if (not (t) and not (l) and not (d)):
-            for i in range(0, len(filelist)):
+            for i in range(1, len(filelist)):
                 data = read_WAVs(path_to_dir + str(x), data_size)  # zaczytanie inputu o wartosci "0"
                 train, val, test = data_splitter(data, train_size, val_size)
 
@@ -268,7 +345,7 @@ def randomize(seg_len, test_tnsr, plot=False):
 
     return [new_tensr,shuffled_tensor1]
 
-def perform_tests(path_to_dir,feature,number_in_dir,test_tnsr, model, name):
+def perform_tests(path_to_dir,feature,number_in_dir, model, name):
     # test_tnsr = test_tnsr[1]!!!
     # feature = 'level',number_in_dir=1,test_tnsr =
     database_names = return_testfiles(path_to_dir)
@@ -281,13 +358,20 @@ def perform_tests(path_to_dir,feature,number_in_dir,test_tnsr, model, name):
         value = database_names[y][2]
     elif feature == 'drive':
         value = database_names[y][3]
+
     print(f"Performing testing for: No.{y}. {x} recording, with {feature}=",value)
-    data = read_WAVs(path_to_dir + x, data_size)
-    output2 = concat_WAV(data, value)
+    # this data must be input0 !!! # database_names[0][0] = input.wav
 
-    second_arg = output2[:, 0].unsqueeze(dim=1)
+    data = read_WAVs(path_to_dir + database_names[0][0], data_size)
+    output_param =  read_WAVs(path_to_dir + x, data_size)
 
-    test_arr = WindowArrayDataset(output2, second_arg, input_size, batch_size=204800)
+    input0 = concat_WAV(data, value)
+    print(input0)
+    print(output_param)
+
+
+    test_arr = WindowArrayDataset(input0, output_param, 150, batch_size=204800)
+
     model.load_state_dict(torch.load(f'models/{name}/{name}.pth'))
     model.eval()
 
@@ -328,7 +412,7 @@ if __name__ == "__main__":
     LSTM
     Parameters:
     '''
-    epochs = 10
+    epochs = 1
     input_size = 150
     batch_size = 4096
     test_size = 0.2
@@ -368,7 +452,8 @@ if __name__ == "__main__":
 
 
 
-    data_size = 0.9
+    data_size = 0.1
+
     train_size = 0.5
     val_size = 0.25
     # test size is what is left! in this situation its 0.25 of each file
@@ -480,207 +565,12 @@ if __name__ == "__main__":
 
     torch.save(model.state_dict(), f'models/{name}/{name}.pth')
 
-    # running prediction on test dataset:
-
-    # UWAGA!
-    # !!!podejscie błedne ale to nie ma znaczenia teraz!!!
-    #
-    # 20 % to zbiór testowy !
-
-    # database_names = return_testfiles(path_to_dir)
-    # x = database_names[1][0]
-    # l_value = database_names[1][2]
-    # print('Performing testing for:',x,'recording, with LEVEL=',l_value)
-    # data = read_WAVs(path_to_dir + x, data_size)
-    # output2 = concat_WAV(data, l_value)
-    # #test_tnsr[0] ma 2 wymiary [2182950, 2]
-    # #test_tnsr[1] ma 1 wymiary [2182950, 1]
-    #
-    #
-    # #test_arr = WindowArrayDataset(test_tnsr[0], test_tnsr[1], input_size, batch_size=204800)
-    # test_arr = WindowArrayDataset(output2, test_tnsr[1], input_size, batch_size=204800)
-    #
-    # model.load_state_dict(torch.load(f'models/{name}/{name}.pth'))
-    # model.eval()
-    #
-    # index = 0
-    # sample_item = test_arr[index]
-    # print(sample_item.shape)
-    #
-    # # Make predictions
-    # with torch.no_grad():
-    #     prediction = model(sample_item[0])
-    #
-    # # Convert PyTorch tensor to numpy array
-    # mse = loss_fn(prediction, sample_item[1])
-    #
-    # print(f"Test file  MSE: {mse:.4f}")
-    #
-    # prediction = prediction.numpy()
-    #
-    # original_wav = sample_item[1].numpy()
-    #
-    # # Save predictions as WAV
-    #
-    #
-    original_wav, prediction = perform_tests(path_to_dir,'level',1,test_tnsr[1], model, name)
+    original_wav, prediction = perform_tests(path_to_dir,'level',1, model, name)
+    original_wav, prediction = perform_tests(path_to_dir, 'level', 2, model, name)
+    #original_wav, prediction = perform_tests(path_to_dir, 'level', 3, model, name)
 
     sf.write(f'models/{name}/y_pred.wav', prediction, samplerate=44100)
     sf.write(f'models/{name}/y_original.wav', original_wav, samplerate=44100)
 
-    original_wav, prediction = perform_tests(path_to_dir, 'level', 2, test_tnsr[1], model, name)
-    original_wav, prediction = perform_tests(path_to_dir, 'level', 3, test_tnsr[1], model, name)
 
 
-
-
-    # data format:
-    # # trening:
-    #
-    # # INPUT:
-    # [31752000, 2]
-    # input(x times ) + values
-    #
-    #
-    # # output:
-    #
-    # output tensor
-
-    # 1 powod ze jest zle:
-    # dwa sklejone tensory są sklejone 1:1, a nie zmieszane jak random losowo, po iles batchów
-
-    # 2 powod ze nie działa:
-    # sieć nie przyjmuje danych z parametrem lub dataset(getitem np albo coś)/dataloader nie dziala !!
-    # wtedy dane są tresnowane tylko na 1:x , a powinny byc trenowane 1:1 czyli na obu!!
-    # CROSSVALIDATION!!  VALIDAJA KRZYZOWA? MIESZANIE DANYCh?
-
-    # powod 3 : GŁÓWNY!!!!
-    # dzielenie tensora new_tensor jest zle zrobione bo dostarczamy do walidacji ostatnią część która jest nie przemiesszana nie zaszaflowana!!!
-
-    '''
-    
-    
-    
-
-
-    print_interval = 100
-    plot_interval = 10
-    ###################
-    # for plotting purposes:
-    train_loss_plt =[]
-    val_loss_plt =[]
-    mse_sum_train = 0.0
-    num_batches_train = 0
-    ###################
-    # Train Model ###################################################
-    for epoch in range(epochs):
-        model.train()
-        for i, (inputs, targets) in enumerate(train_loader):
-
-            inputs = inputs.view(1 *4096, input_size , 1)
-            targets = targets.view(1 *4096, 1)
-
-            outputs = model(inputs)
-            loss = loss_fn(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-            mse_sum_train += loss
-            num_batches_train += 1
-
-            # plot last validation loss:
-
-            # if(epoch == epochs):
-            #   val_loss_plt.append(val_loss.item())
-
-
-
-            if (i + 1) % print_interval == 0: # every each 100 batches print and run validation!:
-
-                print(f"Epoch [{epoch + 1}/{epochs}], Batch [{i + 1}/{len(train_arr)}], Loss: {loss.item():.4f}")
-
-        #train_loss_plt.append(loss.item()) # add last loss value to plot
-        average_mse_train = mse_sum_train / num_batches_train
-        train_loss_plt.append(average_mse_train.item())
-
-
-
-        # for each epoch calculate validation loss:
-        mse_sum_val = 0.0
-        num_batches_val = 0
-        model.eval()
-        with torch.no_grad():
-            for i, (inputs, targets) in enumerate(val_loader):
-                inputs = inputs.view(1 * 4096, input_size , 1)
-                targets = targets.view(1 * 4096, 1)
-
-                outputs = model(inputs)
-                val_loss = loss_fn(outputs,targets)
-
-                mse_sum_val += val_loss
-                num_batches_val +=1
-
-                #plot last validation loss:
-
-                #if(epoch == epochs):
-                #   val_loss_plt.append(val_loss.item())
-            average_mse_val = mse_sum_val / num_batches_val
-            print(f"Average validation MSE: {average_mse_val:.4f}")
-            #val_loss_plt.append(val_loss.item())
-            val_loss_plt.append(average_mse_val.item())
-
-    #AFTER ALL EPOCHS:
-    epochs_axis = [x for x  in range(1, epochs+1)]
-
-
-    plt.plot(epochs_axis, train_loss_plt,label = 'train_loss')
-    plt.plot(epochs_axis, val_loss_plt, label='validation_loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss [MSE]')
-    plt.legend()
-    plt.show()
-
-
-
-
-
-
-    # Save trained model
-    new_dir = os.path.join('models',name)
-    os.makedirs(new_dir, exist_ok=True)
-
-    torch.save(model.state_dict(), f'models/{name}/{name}.pth')
-
-    #running prediction on test dataset:
-
-    test_arr = WindowArrayDataset(data_test[0], data_test[1], input_size, batch_size=204800)
-
-    model.load_state_dict(torch.load(f'models/{name}/{name}.pth'))
-    model.eval()
-
-    # Convert test_arr to a PyTorch tensor
-    #test_loader = DataLoader(test_arr, batch_size=batch_size, shuffle=False)
-
-    index = 0
-    sample_item = test_arr[index]
-
-    # Make predictions
-    with torch.no_grad():
-        prediction = model(sample_item[0])
-
-    # Convert PyTorch tensor to numpy array
-    mse = loss_fn(prediction,sample_item[1])
-
-    print(f"Test file  MSE: {mse:.4f}")
-
-    prediction = prediction.numpy()
-
-
-    # Save predictions as WAV
-    sf.write(f'models/{name}/y_pred.wav', prediction, samplerate=44100)
-
-
-
-
-    '''

@@ -284,7 +284,7 @@ if __name__ == "__main__":
 
   path_to_dir = "D:\\repos\MGR\\neural-analog\data\\parametric\\"
 
-  data_size = 0.8
+  data_size = 0.1
 
   train_size = 0.5
   val_size = 0.3
@@ -292,8 +292,6 @@ if __name__ == "__main__":
 
 
   train_tnsr,val_tnsr,test_tnsr = whole_dataset(path_to_dir,feature = 'l', data_size = data_size, train_size=train_size, val_size=val_size)
-
-
 
 
 
@@ -334,14 +332,6 @@ if __name__ == "__main__":
 
 
 
-
-
-
-
-  
-
-
-
   # 50 % stanowi zbiór trenignowy!:
   train_arr = WindowArrayDataset(train_tnsr[0], train_tnsr[1], input_size, batch_size= batch_size)
   train_loader_param = DataLoader(train_arr, batch_size=1, shuffle=True)
@@ -350,8 +340,6 @@ if __name__ == "__main__":
   # 30 % stanowi zbiór walidacyjny!:
   val_arr = WindowArrayDataset(val_tnsr[0], val_tnsr[1], input_size, batch_size=batch_size)
   val_loader_param = DataLoader(val_arr, batch_size=1, shuffle=True)
-
-
 
 
 
@@ -439,16 +427,7 @@ if __name__ == "__main__":
   torch.save(model.state_dict(), f'models/{name}/{name}.pth')
 
 
-
-  # running prediction on test dataset:
-
-
-  # UWAGA!
-  #!!!podejscie błedne ale to nie ma znaczenia teraz!!!
-  #
-  # 20 % to zbiór testowy !
   test_arr = WindowArrayDataset(test_tnsr[0], test_tnsr[1], input_size, batch_size=204800)
-
 
   model.load_state_dict(torch.load(f'models/{name}/{name}.pth'))
   model.eval()
@@ -477,29 +456,6 @@ if __name__ == "__main__":
 
   sf.write(f'models/{name}/y_original.wav', original_wav, samplerate=44100)
 
-  # data format:
-  # # trening:
-  # 
-  # # INPUT:
-  # [31752000, 2]
-  # input(x times ) + values
-  # 
-  # 
-  # # output:
-  # 
-  # output tensor 
-  
-  # 1 powod ze jest zle:
-  # dwa sklejone tensory są sklejone 1:1, a nie zmieszane jak random losowo, po iles batchów
-
-  # 2 powod ze nie działa:
-  # sieć nie przyjmuje danych z parametrem lub dataset(getitem np albo coś)/dataloader nie dziala !!
-  # wtedy dane są tresnowane tylko na 1:x , a powinny byc trenowane 1:1 czyli na obu!!
-  # CROSSVALIDATION!!  VALIDAJA KRZYZOWA? MIESZANIE DANYCh?
-
-
-  # powod 3 : GŁÓWNY!!!!
-  # dzielenie tensora new_tensor jest zle zrobione bo dostarczamy do walidacji ostatnią część która jest nie przemiesszana nie zaszaflowana!!!
 
 
 
@@ -509,130 +465,3 @@ if __name__ == "__main__":
 
 
 
-
-
-
-'''
-
-
-    print_interval = 100
-    plot_interval = 10
-    ###################
-    # for plotting purposes:
-    train_loss_plt =[]
-    val_loss_plt =[]
-    mse_sum_train = 0.0
-    num_batches_train = 0
-    ###################
-    # Train Model ###################################################
-    for epoch in range(epochs):
-        model.train()
-        for i, (inputs, targets) in enumerate(train_loader):
-
-            inputs = inputs.view(1 *4096, input_size , 1)
-            targets = targets.view(1 *4096, 1)
-
-            outputs = model(inputs)
-            loss = loss_fn(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-            mse_sum_train += loss
-            num_batches_train += 1
-
-            # plot last validation loss:
-
-            # if(epoch == epochs):
-            #   val_loss_plt.append(val_loss.item())
-
-
-
-            if (i + 1) % print_interval == 0: # every each 100 batches print and run validation!:
-
-                print(f"Epoch [{epoch + 1}/{epochs}], Batch [{i + 1}/{len(train_arr)}], Loss: {loss.item():.4f}")
-
-        #train_loss_plt.append(loss.item()) # add last loss value to plot
-        average_mse_train = mse_sum_train / num_batches_train
-        train_loss_plt.append(average_mse_train.item())
-
-
-
-        # for each epoch calculate validation loss:
-        mse_sum_val = 0.0
-        num_batches_val = 0
-        model.eval()
-        with torch.no_grad():
-            for i, (inputs, targets) in enumerate(val_loader):
-                inputs = inputs.view(1 * 4096, input_size , 1)
-                targets = targets.view(1 * 4096, 1)
-
-                outputs = model(inputs)
-                val_loss = loss_fn(outputs,targets)
-
-                mse_sum_val += val_loss
-                num_batches_val +=1
-
-                #plot last validation loss:
-
-                #if(epoch == epochs):
-                #   val_loss_plt.append(val_loss.item())
-            average_mse_val = mse_sum_val / num_batches_val
-            print(f"Average validation MSE: {average_mse_val:.4f}")
-            #val_loss_plt.append(val_loss.item())
-            val_loss_plt.append(average_mse_val.item())
-
-    #AFTER ALL EPOCHS:
-    epochs_axis = [x for x  in range(1, epochs+1)]
-
-
-    plt.plot(epochs_axis, train_loss_plt,label = 'train_loss')
-    plt.plot(epochs_axis, val_loss_plt, label='validation_loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss [MSE]')
-    plt.legend()
-    plt.show()
-
-
-
-
-
-
-    # Save trained model
-    new_dir = os.path.join('models',name)
-    os.makedirs(new_dir, exist_ok=True)
-
-    torch.save(model.state_dict(), f'models/{name}/{name}.pth')
-
-    #running prediction on test dataset:
-
-    test_arr = WindowArrayDataset(data_test[0], data_test[1], input_size, batch_size=204800)
-
-    model.load_state_dict(torch.load(f'models/{name}/{name}.pth'))
-    model.eval()
-
-    # Convert test_arr to a PyTorch tensor
-    #test_loader = DataLoader(test_arr, batch_size=batch_size, shuffle=False)
-
-    index = 0
-    sample_item = test_arr[index]
-
-    # Make predictions
-    with torch.no_grad():
-        prediction = model(sample_item[0])
-
-    # Convert PyTorch tensor to numpy array
-    mse = loss_fn(prediction,sample_item[1])
-
-    print(f"Test file  MSE: {mse:.4f}")
-
-    prediction = prediction.numpy()
-
-
-    # Save predictions as WAV
-    sf.write(f'models/{name}/y_pred.wav', prediction, samplerate=44100)
-
-
-
-
-'''
